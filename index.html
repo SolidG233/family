@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>朋友圈宣发图合成</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 10px;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 1000px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h2 { color: #333; margin-bottom: 10px; font-size: 1.2rem;}
+        p { color: #666; font-size: 13px; margin-bottom: 15px; }
+
+        /* 顶部上传按钮区域 */
+        .top-bar {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        input[type="file"] { display: none; }
+
+        .btn {
+            border: 1px solid #007bff;
+            color: #007bff;
+            background-color: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn:hover { background-color: #007bff; color: white; }
+
+        .btn-secondary { border-color: #6c757d; color: #6c757d; }
+        .btn-secondary:hover { background-color: #6c757d; color: white; }
+        
+        .btn-purple { border-color: #6f42c1; color: #6f42c1; }
+        .btn-purple:hover { background-color: #6f42c1; color: white; }
+
+        /* 红色清除按钮样式 */
+        .btn-danger-sm {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: auto; /* 靠右对齐 */
+        }
+        .btn-danger-sm:hover { background-color: #c82333; }
+
+        /* --- 核心布局：左右结构 --- */
+        .editor-wrapper {
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        @media (min-width: 768px) {
+            .editor-wrapper {
+                flex-direction: row;
+                align-items: flex-start;
+            }
+        }
+
+        .sidebar {
+            width: 100%;
+            max-width: 350px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            margin-bottom: 5px;
+            border-bottom: 1px dashed #e0e0e0;
+            padding-bottom: 8px;
+        }
+        .control-group:last-child { border-bottom: none; }
+        
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .control-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: bold;
+            color: #555;
+            margin: 0;
+        }
+
+        /* --- 比例切换按钮组 --- */
+        .ratio-switch {
+            display: flex;
+            background: #e9ecef;
+            border-radius: 4px;
+            padding: 2px;
+            margin-bottom: 10px;
+        }
+        .ratio-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .ratio-btn.active {
+            background: white;
+            color: #007bff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-weight: bold;
+        }
+
+        /* --- 预设列表样式 (整合在 sidebar 内) --- */
+        .preset-list {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding: 5px 2px;
+            margin-bottom: 10px;
+            /* 隐藏滚动条但允许滚动 */
+            -ms-overflow-style: none;  
+            scrollbar-width: none;  
+        }
+        .preset-list::-webkit-scrollbar { display: none; }
+
+        .preset-item {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            object-fit: contain;
+            background: #fff;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            box-sizing: border-box;
+        }
+        .preset-item:hover { border-color: #aaa; }
+        .preset-item.active { border-color: #007bff; background: #e7f1ff; box-shadow: 0 0 0 2px rgba(0,123,255,0.2); }
+
+        /* 无边框按钮的特殊样式 */
+        .preset-item.no-border {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #999;
+            font-weight: bold;
+            background: #eee;
+            border-style: dashed;
+        }
+
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-row input { flex: 1; }
+        .slider-value { font-size: 12px; color: #777; width: 35px; text-align: right;}
+
+        .tip { font-size: 12px; color: #999; line-height: 1.5; background: #fff; padding: 10px; border-radius: 4px; border: 1px dashed #ccc;}
+
+        #canvas-container {
+            border: 1px solid #ccc;
+            background-color: #e0e0e0;
+            padding: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            overflow: hidden;
+            min-height: 300px; /* 保证容器有高度 */
+        }
+
+        canvas {
+            width: 100%;           
+            max-width: 350px;      
+            height: auto;          
+            /* aspect-ratio: 2/3;  移除CSS固定的宽高比，由JS控制 */
+            background-color: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: block;
+            touch-action: none; 
+            cursor: grab; 
+        }
+        canvas:active { cursor: grabbing; }
+
+        #download-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 15px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        #download-btn:hover { background-color: #218838; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>朋友圈宣发图合成</h2>
+        <p> 如有疑问联系：江苏省域-市场营销部-郭昊灵</p>
+
+        <!-- 顶部：上传按钮 -->
+        <div class="top-bar">
+            <label class="btn">
+                ① 上传照片
+                <input type="file" id="bg-input" accept="image/*">
+            </label>
+
+            <label class="btn btn-secondary">
+                ② 上传自定义边框
+                <input type="file" id="overlay-input" accept="image/*">
+            </label>
+
+            <label class="btn btn-purple">
+                ③ 可选元素
+                <input type="file" id="overlay2-input" accept="image/*">
+            </label>
+        </div>
+
+        <!-- 中间：左右布局 -->
+        <div class="editor-wrapper">
+            
+            <!-- 左侧：控制栏 -->
+            <div id="sidebar-controls" class="sidebar" style="display:none;">
+                
+                <!-- 新增：比例切换 -->
+                <div class="control-group">
+                    <div class="control-header">
+                        <label>画布比例</label>
+                    </div>
+                    <div class="ratio-switch">
+                        <button class="ratio-btn active" onclick="setRatio('portrait', this)">竖版 (2:3)</button>
+                        <button class="ratio-btn" onclick="setRatio('landscape', this)">横版 (3:2)</button>
+                    </div>
+                </div>
+
+                <!-- 1. 照片控制 -->
+                <div class="control-group">
+                    <div class="control-header">
+                        <label>照片缩放</label>
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="bg-scale-slider" min="10" max="500" value="100">
+                        <span id="bg-scale-val" class="slider-value">100%</span>
+                    </div>
+                </div>
+
+                <!-- 2. 边框控制 (新增预设) -->
+                <div class="control-group">
+                    <div class="control-header">
+                        <label>边框固定 (选择预设)</label>
+                    </div>
+                    
+                    <!-- 预设列表 -->
+                    <div class="preset-list" id="overlay-presets">
+                        <!-- 选项：无 -->
+                        <div class="preset-item no-border active" onclick="clearOverlay(this)" title="清除边框">无</div>
+                        
+                        <!-- =========== 竖版预设 (data-type="portrait") =========== -->
+                        <img src="https://img.heliar.top/file/1770253950584_logo.jpg?text=竖版A" 
+                             data-src="https://img.heliar.top/file/1770254103372_shuj.png?text=竖版A" 
+                             class="preset-item" data-type="portrait" onclick="selectPreset(this)">
+                        
+                        <img src="https://img.heliar.top/file/1770190867979_shufa.png?text=竖版B" 
+                             data-src="https://img.heliar.top/file/1770189046089_书法.png?text=竖版B" 
+                             class="preset-item" data-type="portrait" onclick="selectPreset(this)">
+ 
+
+                        <!-- =========== 横版预设 (data-type="landscape") =========== -->
+                        <!-- 默认隐藏，点击横版按钮后显示 -->
+                        <!-- 这里的图片链接是示例，请替换为你自己的横版边框图 -->
+                        <img src="https://img.heliar.top/file/1770253950584_logo.jpg?text=横版A" 
+                             data-src="https://img.heliar.top/file/1770253955369_kuang_.png?text=横版大图A" 
+                             class="preset-item" data-type="landscape" style="display:none" onclick="selectPreset(this)">
+
+                        <img src="https://via.placeholder.com/150x100?text=横版B" 
+                             data-src="https://via.placeholder.com/900x600?text=横版大图B" 
+                             class="preset-item" data-type="landscape" style="display:none" onclick="selectPreset(this)">
+                    </div>
+                </div>
+
+                <!-- 3. 元素控制 -->
+                <div class="control-group">
+                    <div class="control-header">
+                        <label>可选元素</label>
+                        <!-- 新增：清除按钮 -->
+                        <button class="btn-danger-sm" onclick="clearOverlay2()" id="clear-overlay2-btn" style="display:none;">清除元素</button>
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="overlay2-scale-slider" min="5" max="100" value="30">
+                        <span id="overlay2-scale-val" class="slider-value">30%</span>
+                    </div>
+                </div>
+
+                <div class="tip">
+                    <b>操作提示：</b><br>
+                    • <b>单指</b>：拖拽移动位置<br>
+                    • <b>双指</b>：捏合缩放大小<br>
+                    • 切换横竖版会自动重置图片位置<br>
+                    • 优先选中“可选元素”，否则操作“照片”
+                </div>
+
+                <button id="download-btn" onclick="downloadCanvas()">下载图片</button>
+            </div>
+
+            <!-- 右侧：画布 -->
+            <div id="canvas-container">
+                <canvas id="myCanvas"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('myCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Inputs
+        const bgInput = document.getElementById('bg-input');
+        const overlayInput = document.getElementById('overlay-input');
+        const overlay2Input = document.getElementById('overlay2-input');
+        
+        const sidebar = document.getElementById('sidebar-controls');
+        const clearOverlay2Btn = document.getElementById('clear-overlay2-btn');
+        
+        // Sliders
+        const bgScaleSlider = document.getElementById('bg-scale-slider');
+        const overlay2ScaleSlider = document.getElementById('overlay2-scale-slider');
+
+        // Values display
+        const bgScaleVal = document.getElementById('bg-scale-val');
+        const overlay2ScaleVal = document.getElementById('overlay2-scale-val');
+
+        // Canvas Resolution Settings
+        const BASE_SIZE = 2000;
+        const RATIO_LONG = 3000;
+        
+        // 默认竖版
+        let currentMode = 'portrait'; 
+        canvas.width = BASE_SIZE;
+        canvas.height = RATIO_LONG;
+
+        // Image Objects
+        let bgImg = new Image();
+        let overlayImg = new Image();
+        let overlay2Img = new Image();
+
+        // Load States
+        let bgLoaded = false;
+        let overlayLoaded = false;
+        let overlay2Loaded = false;
+
+        // Transform States
+        let bgState = { x: 0, y: 0, scale: 1, baseScale: 1 };
+        let ov2State = { x: 0, y: 0, scale: 0.3, width: 0, height: 0 };
+
+        // Interaction States
+        let isDragging = false;
+        let dragTarget = null;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // --- 新增：切换横竖版逻辑 (已修改) ---
+        function setRatio(mode, btn) {
+            if (currentMode === mode) return;
+            currentMode = mode;
+
+            // 更新按钮样式
+            document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // 调整画布尺寸
+            if (mode === 'portrait') {
+                canvas.width = BASE_SIZE;
+                canvas.height = RATIO_LONG;
+            } else {
+                canvas.width = RATIO_LONG;
+                canvas.height = BASE_SIZE;
+            }
+
+            // 【核心修改】筛选显示对应的预设
+            const presets = document.querySelectorAll('.preset-item[data-type]');
+            presets.forEach(item => {
+                if (item.getAttribute('data-type') === mode) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // 【核心修改】切换比例时，清除当前选中的边框，防止变形
+            const noBorderBtn = document.querySelector('.preset-item.no-border');
+            if(noBorderBtn) clearOverlay(noBorderBtn);
+
+            // 如果已经加载了背景图，需要重新计算位置以适应新画布
+            if (bgLoaded) {
+                resetBgPosition();
+            } else {
+                drawInit();
+            }
+            
+            // 如果有元素2，也需要重新定位防止跑出画布
+            if (overlay2Loaded) {
+                ov2State.x = 50;
+                ov2State.y = 50;
+            }
+
+            draw();
+        }
+
+        function resetBgPosition() {
+            const canvasRatio = canvas.width / canvas.height;
+            const imgRatio = bgImg.width / bgImg.height;
+
+            if (imgRatio > canvasRatio) {
+                bgState.baseScale = canvas.height / bgImg.height;
+            } else {
+                bgState.baseScale = canvas.width / bgImg.width;
+            }
+
+            bgState.scale = bgState.baseScale;
+            bgState.x = (canvas.width - bgImg.width * bgState.scale) / 2;
+            bgState.y = (canvas.height - bgImg.height * bgState.scale) / 2;
+
+            bgScaleSlider.value = 100;
+            bgScaleVal.innerText = "100%";
+        }
+
+        // --- 核心修改：预设边框逻辑 ---
+        function selectPreset(element) {
+            document.querySelectorAll('.preset-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            const src = element.getAttribute('data-src') || element.src;
+            overlayImg.crossOrigin = "Anonymous"; 
+            overlayImg.src = src;
+        }
+
+        function clearOverlay(element) {
+            document.querySelectorAll('.preset-item').forEach(el => el.classList.remove('active'));
+            element.classList.add('active');
+            overlayLoaded = false;
+            overlayImg.src = ""; 
+            draw();
+        }
+
+        function clearOverlay2() {
+            overlay2Loaded = false;
+            overlay2Img.src = ""; 
+            overlay2Input.value = ""; 
+            clearOverlay2Btn.style.display = 'none'; 
+            draw();
+        }
+
+        // --- 初始预览图逻辑 ---
+        const defaultBgImg = new Image();
+        defaultBgImg.crossOrigin = "Anonymous";
+        defaultBgImg.src = ''; // 保持为空或设置默认图
+
+        defaultBgImg.onload = () => {
+            if (!bgLoaded) {
+                drawInit();
+            }
+        }
+
+        function drawInit() {
+            if (!defaultBgImg.complete || defaultBgImg.src === "" || defaultBgImg.src.endsWith("html")) {
+                // 纯色背景 + 文字提示
+                ctx.fillStyle = "#f0f2f5";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = "#999";
+                ctx.font = "bold 80px 'Microsoft YaHei', sans-serif";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText("请点击上方按钮上传照片", canvas.width/2, canvas.height/2);
+                return;
+            }
+
+            // 绘制背景图
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const imgRatio = defaultBgImg.width / defaultBgImg.height;
+            const canvasRatio = canvas.width / canvas.height;
+            
+            let renderW, renderH, renderX, renderY;
+
+            if (imgRatio > canvasRatio) {
+                renderH = canvas.height;
+                renderW = renderH * imgRatio;
+                renderX = (canvas.width - renderW) / 2;
+                renderY = 0;
+            } else {
+                renderW = canvas.width;
+                renderH = renderW / imgRatio;
+                renderX = 0;
+                renderY = (canvas.height - renderH) / 2;
+            }
+
+            ctx.drawImage(defaultBgImg, renderX, renderY, renderW, renderH);
+
+            ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#fff";
+            ctx.font = "bold 80px 'Microsoft YaHei', sans-serif";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+            ctx.shadowBlur = 20;
+            ctx.fillText("请点击上方按钮上传照片", canvas.width/2, canvas.height/2);
+            ctx.shadowBlur = 0;
+        }
+        
+        drawInit();
+
+        // --- 1. Background Logic ---
+        bgInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                bgImg.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        bgImg.onload = () => {
+            bgLoaded = true;
+            sidebar.style.display = 'flex';
+            resetBgPosition(); // 使用封装好的重置逻辑
+            draw();
+        };
+
+        // --- 2. Overlay 1 Logic (Fixed Bottom Right) ---
+        overlayInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.querySelectorAll('.preset-item').forEach(el => el.classList.remove('active'));
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                overlayImg.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        overlayImg.onload = () => {
+            if (overlayImg.src && overlayImg.src !== window.location.href) {
+                overlayLoaded = true;
+                sidebar.style.display = 'flex';
+                draw();
+            }
+        };
+
+        // --- 3. Overlay 2 Logic (Movable) ---
+        overlay2Input.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                overlay2Img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        overlay2Img.onload = () => {
+            overlay2Loaded = true;
+            sidebar.style.display = 'flex';
+            clearOverlay2Btn.style.display = 'inline-block'; 
+            
+            ov2State.scale = 0.3; 
+            updateOverlay2Dimensions();
+            
+            ov2State.x = 50;
+            ov2State.y = 50;
+
+            overlay2ScaleSlider.value = 30;
+            overlay2ScaleVal.innerText = "30%";
+
+            draw();
+        };
+
+        function updateOverlay2Dimensions() {
+            if(!overlay2Loaded) return;
+            ov2State.width = canvas.width * ov2State.scale;
+            const ratio = overlay2Img.height / overlay2Img.width;
+            ov2State.height = ov2State.width * ratio;
+        }
+
+        // --- Sliders Events ---
+        bgScaleSlider.addEventListener('input', () => {
+            if (!bgLoaded) return;
+            const sliderVal = parseInt(bgScaleSlider.value);
+            bgScaleVal.innerText = sliderVal + "%";
+            
+            const newScale = bgState.baseScale * (sliderVal / 100);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            const offsetX = centerX - bgState.x;
+            const offsetY = centerY - bgState.y;
+            const scaleRatio = newScale / bgState.scale;
+            
+            bgState.x = centerX - (offsetX * scaleRatio);
+            bgState.y = centerY - (offsetY * scaleRatio);
+            bgState.scale = newScale;
+            draw();
+        });
+
+        overlay2ScaleSlider.addEventListener('input', () => {
+            if (!overlay2Loaded) return;
+            const val = parseInt(overlay2ScaleSlider.value);
+            overlay2ScaleVal.innerText = val + "%";
+            
+            const oldW = ov2State.width;
+            const oldH = ov2State.height;
+            const centerX = ov2State.x + oldW / 2;
+            const centerY = ov2State.y + oldH / 2;
+
+            ov2State.scale = val / 100;
+            updateOverlay2Dimensions();
+
+            ov2State.x = centerX - ov2State.width / 2;
+            ov2State.y = centerY - ov2State.height / 2;
+
+            draw();
+        });
+
+        // --- 坐标转换辅助函数 ---
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function isMouseOnOverlay2(mx, my) {
+            if (!overlay2Loaded) return false;
+            return mx >= ov2State.x && mx <= ov2State.x + ov2State.width &&
+                   my >= ov2State.y && my <= ov2State.y + ov2State.height;
+        }
+
+        // --- Mouse Events (Desktop) ---
+        canvas.addEventListener('mousedown', (e) => {
+            if (!bgLoaded) return;
+            const pos = getCanvasCoordinates(e);
+            
+            if (isMouseOnOverlay2(pos.x, pos.y)) {
+                dragTarget = 'overlay2';
+                canvas.style.cursor = 'move';
+            } else {
+                dragTarget = 'bg';
+                canvas.style.cursor = 'grabbing';
+            }
+
+            isDragging = true;
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+            dragTarget = null;
+            canvas.style.cursor = 'grab'; 
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging && overlay2Loaded) {
+                const pos = getCanvasCoordinates(e);
+                if (isMouseOnOverlay2(pos.x, pos.y)) {
+                    canvas.style.cursor = 'move';
+                } else {
+                    canvas.style.cursor = 'grab';
+                }
+            }
+
+            if (!isDragging || !bgLoaded) return;
+
+            const deltaX = e.clientX - lastMouseX;
+            const deltaY = e.clientY - lastMouseY;
+
+            const displayWidth = canvas.clientWidth; 
+            const scaleFactor = canvas.width / displayWidth; 
+            const moveX = deltaX * scaleFactor;
+            const moveY = deltaY * scaleFactor;
+
+            if (dragTarget === 'overlay2') {
+                ov2State.x += moveX;
+                ov2State.y += moveY;
+            } else if (dragTarget === 'bg') {
+                bgState.x += moveX;
+                bgState.y += moveY;
+            }
+
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+
+            draw();
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            if (!bgLoaded) return;
+            e.preventDefault();
+
+            const pos = getCanvasCoordinates(e);
+            const zoomIntensity = 0.1;
+            const wheel = e.deltaY < 0 ? 1 : -1;
+            const zoomFactor = Math.exp(wheel * zoomIntensity);
+
+            if (isMouseOnOverlay2(pos.x, pos.y)) {
+                let newScale = ov2State.scale * zoomFactor;
+                if (newScale < 0.05) newScale = 0.05;
+                if (newScale > 1.0) newScale = 1.0;
+
+                const oldW = ov2State.width;
+                const oldH = ov2State.height;
+                const centerX = ov2State.x + oldW / 2;
+                const centerY = ov2State.y + oldH / 2;
+
+                ov2State.scale = newScale;
+                updateOverlay2Dimensions();
+
+                ov2State.x = centerX - ov2State.width / 2;
+                ov2State.y = centerY - ov2State.height / 2;
+
+                const sliderVal = Math.round(ov2State.scale * 100);
+                overlay2ScaleSlider.value = sliderVal;
+                overlay2ScaleVal.innerText = sliderVal + "%";
+
+            } else {
+                let newScale = bgState.scale * zoomFactor;
+                const minScale = bgState.baseScale * 0.1;
+                const maxScale = bgState.baseScale * 5.0;
+                
+                if (newScale < minScale) newScale = minScale;
+                if (newScale > maxScale) newScale = maxScale;
+
+                const mouseX = pos.x;
+                const mouseY = pos.y;
+
+                bgState.x = mouseX - (mouseX - bgState.x) * (newScale / bgState.scale);
+                bgState.y = mouseY - (mouseY - bgState.y) * (newScale / bgState.scale);
+                bgState.scale = newScale;
+
+                const sliderVal = Math.round((bgState.scale / bgState.baseScale) * 100);
+                bgScaleSlider.value = sliderVal;
+                bgScaleVal.innerText = sliderVal + "%";
+            }
+
+            draw();
+        }, { passive: false });
+
+        // --- Touch Events ---
+        let initialPinchDistance = null;
+        let lastTouchX = 0;
+        let lastTouchY = 0;
+
+        function getDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function getTouchPos(touch) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (touch.clientX - rect.left) * scaleX,
+                y: (touch.clientY - rect.top) * scaleY
+            };
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (!bgLoaded) return;
+            e.preventDefault();
+
+            if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                const pos = getTouchPos(touch);
+
+                if (isMouseOnOverlay2(pos.x, pos.y)) {
+                    dragTarget = 'overlay2';
+                } else {
+                    dragTarget = 'bg';
+                }
+                isDragging = true;
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+
+            } else if (e.touches.length === 2) {
+                initialPinchDistance = getDistance(e.touches);
+                const pos = getTouchPos(e.touches[0]);
+                if (isMouseOnOverlay2(pos.x, pos.y)) {
+                    dragTarget = 'overlay2';
+                } else {
+                    dragTarget = 'bg';
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (!bgLoaded) return;
+            e.preventDefault();
+
+            if (e.touches.length === 2 && initialPinchDistance > 0) {
+                const currentDistance = getDistance(e.touches);
+                const scaleFactor = currentDistance / initialPinchDistance;
+
+                if (dragTarget === 'overlay2') {
+                    let newScale = ov2State.scale * scaleFactor;
+                    if (newScale < 0.05) newScale = 0.05;
+                    if (newScale > 1.0) newScale = 1.0;
+
+                    const oldW = ov2State.width;
+                    const oldH = ov2State.height;
+                    const centerX = ov2State.x + oldW / 2;
+                    const centerY = ov2State.y + oldH / 2;
+
+                    ov2State.scale = newScale;
+                    updateOverlay2Dimensions();
+
+                    ov2State.x = centerX - ov2State.width / 2;
+                    ov2State.y = centerY - ov2State.height / 2;
+
+                    const sliderVal = Math.round(ov2State.scale * 100);
+                    overlay2ScaleSlider.value = sliderVal;
+                    overlay2ScaleVal.innerText = sliderVal + "%";
+
+                } else {
+                    let newScale = bgState.scale * scaleFactor;
+                    const minScale = bgState.baseScale * 0.1;
+                    const maxScale = bgState.baseScale * 5.0;
+                    
+                    if (newScale < minScale) newScale = minScale;
+                    if (newScale > maxScale) newScale = maxScale;
+
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+                    
+                    bgState.x = centerX - (centerX - bgState.x) * (newScale / bgState.scale);
+                    bgState.y = centerY - (centerY - bgState.y) * (newScale / bgState.scale);
+                    
+                    bgState.scale = newScale;
+
+                    const sliderVal = Math.round((bgState.scale / bgState.baseScale) * 100);
+                    bgScaleSlider.value = sliderVal;
+                    bgScaleVal.innerText = sliderVal + "%";
+                }
+
+                initialPinchDistance = currentDistance;
+                draw();
+            }
+            else if (e.touches.length === 1 && isDragging) {
+                const touch = e.touches[0];
+                const deltaX = touch.clientX - lastTouchX;
+                const deltaY = touch.clientY - lastTouchY;
+
+                const displayWidth = canvas.clientWidth; 
+                const scaleFactor = canvas.width / displayWidth; 
+                const moveX = deltaX * scaleFactor;
+                const moveY = deltaY * scaleFactor;
+
+                if (dragTarget === 'overlay2') {
+                    ov2State.x += moveX;
+                    ov2State.y += moveY;
+                } else if (dragTarget === 'bg') {
+                    bgState.x += moveX;
+                    bgState.y += moveY;
+                }
+
+                lastTouchX = touch.clientX;
+                lastTouchY = touch.clientY;
+                draw();
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            if (e.touches.length === 0) {
+                isDragging = false;
+                initialPinchDistance = null;
+                dragTarget = null;
+            }
+        });
+
+        // --- Main Draw Function ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 1. Draw Background
+            if (bgLoaded) {
+                const w = bgImg.width * bgState.scale;
+                const h = bgImg.height * bgState.scale;
+                ctx.drawImage(bgImg, bgState.x, bgState.y, w, h);
+            } else {
+                drawInit();
+                return;
+            }
+
+            // 2. Draw Overlay 1 (Fixed)
+            if (overlayLoaded) {
+                const scale = 1.0;
+                const newWidth = canvas.width * scale;
+                const ratio = overlayImg.height / overlayImg.width;
+                const newHeight = newWidth * ratio;
+
+                const x = canvas.width - newWidth; 
+                const y = canvas.height - newHeight;
+
+                ctx.drawImage(overlayImg, x, y, newWidth, newHeight);
+            }
+
+            // 3. Draw Overlay 2 (Movable)
+            if (overlay2Loaded) {
+                ctx.drawImage(overlay2Img, ov2State.x, ov2State.y, ov2State.width, ov2State.height);
+            }
+        }
+
+        function downloadCanvas() {
+            if (!bgLoaded) { alert("请先上传底图"); return; }
+            const imageUrl = canvas.toDataURL('image/jpeg', 0.92);
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = `宣发图-${Date.now()}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
