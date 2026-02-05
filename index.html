@@ -226,7 +226,6 @@
             width: 100%;           
             max-width: 350px;      
             height: auto;          
-            /* aspect-ratio: 2/3;  移除CSS固定的宽高比，由JS控制 */
             background-color: white;
             box-shadow: 0 5px 15px rgba(0,0,0,0.2);
             display: block;
@@ -248,6 +247,47 @@
             margin-top: 10px;
         }
         #download-btn:hover { background-color: #218838; }
+
+        /* --- 新增：手机端保存图片的模态框样式 --- */
+        .save-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .save-modal img {
+            max-width: 90%;
+            max-height: 75vh;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 2px solid white;
+        }
+        .save-tip {
+            color: white;
+            margin-top: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px black;
+            text-align: center;
+        }
+        .close-modal-btn {
+            margin-top: 15px;
+            padding: 8px 25px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+        }
 
     </style>
 </head>
@@ -327,8 +367,6 @@
  
 
                         <!-- =========== 横版预设 (data-type="landscape") =========== -->
-                        <!-- 默认隐藏，点击横版按钮后显示 -->
-                        <!-- 这里的图片链接是示例，请替换为你自己的横版边框图 -->
                         <img src="https://img.heliar.top/file/1770253950584_logo.jpg?text=横版A" 
                              data-src="https://img.heliar.top/file/1770257007469_heng.png?text=横版大图A" 
                              class="preset-item" data-type="landscape" style="display:none" onclick="selectPreset(this)">
@@ -360,7 +398,7 @@
                     • 优先选中“可选元素”，否则操作“照片”
                 </div>
 
-                <button id="download-btn" onclick="downloadCanvas()">下载图片</button>
+                <button id="download-btn" onclick="downloadCanvas()">生成/下载图片</button>
             </div>
 
             <!-- 右侧：画布 -->
@@ -369,6 +407,13 @@
             </div>
 
         </div>
+    </div>
+
+    <!-- 新增：手机端长按保存的模态框 -->
+    <div id="mobile-save-modal" class="save-modal">
+        <img id="mobile-save-img" src="" alt="生成的图片">
+        <div class="save-tip">请长按图片保存到相册</div>
+        <button class="close-modal-btn" onclick="closeSaveModal()">关闭</button>
     </div>
 
     <script>
@@ -981,19 +1026,38 @@
             }
         }
 
+        // --- 新增：检测是否为移动设备 ---
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // --- 修改：下载/保存逻辑 ---
         function downloadCanvas() {
             if (!bgLoaded) { alert("请先上传底图"); return; }
+            
             const imageUrl = canvas.toDataURL('image/jpeg', 0.92);
-            const link = document.createElement('a');
-            link.href = imageUrl;
-            link.download = `宣发图-${Date.now()}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+
+            if (isMobile()) {
+                // 手机端：显示模态框供长按保存
+                const modal = document.getElementById('mobile-save-modal');
+                const img = document.getElementById('mobile-save-img');
+                img.src = imageUrl;
+                modal.style.display = 'flex';
+            } else {
+                // 电脑端：直接下载
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.download = `宣发图-${Date.now()}.jpg`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+
+        // --- 新增：关闭模态框 ---
+        function closeSaveModal() {
+            document.getElementById('mobile-save-modal').style.display = 'none';
         }
     </script>
 </body>
 </html>
-
-
-
